@@ -21,6 +21,12 @@ long freqSum = 0;
 int ADvalAvg =0;
 long freqAvg=0;
 
+long windSpeedVal = 0;
+String windDirectionVal = "Test";
+
+char IOTJS[100];
+
+
 //------------------MQTT Prart : Star---------------------------------------
 byte server[] = { 10,6,1,14 }; // MQTT-palvelimen IP-osoite
 unsigned int Port = 1883;  // MQTT-palvelimen portti
@@ -61,7 +67,11 @@ const char keys[3][3] = {
 void setup() {
     Serial.begin(9600); // Sarjaportin alustaminen
     fetch_IP(); // Kutsutaan IP-osoitteen haku-funktiota
+
+    //={\"S_name1\":\"signal1\",\"S_value1\":%d,\"S_name2\":\"signal2\",\"S_value2\":%d}",signal1, signal2}
     
+    sprintf(IOTJS, "IOTJS={\"S_name1\":\"Embedx_WindSpeed\",\"S_value1\":%d,\"S_name2\":\"Embedx_WindDirection\",\"S_value2\":\"%s\"}", 60, "NE");
+
     Timer1.initialize(500000);
     Timer1.attachInterrupt(takeMeasures);
     
@@ -122,7 +132,7 @@ void loop() {
     Serial.print(frequency);
     Serial.print(" | AD val: ");
     Serial.println(ADval);
-    delay(500);
+    delay(2000);
     
      
   }
@@ -170,12 +180,17 @@ lcd.clear();
     
 }
 
+
+
+
+
+
 void send_MQTT_message() {
     if (!client.connected()) { // Tarkistetaan onko yhteys MQTT-brokeriin muodostettu
         connect_MQTT_server(); // Jos yhteyttä ei ollut, kutsutaan yhdistä -funktiota
     }
     if (client.connected()) { // Jos yhteys on muodostettu
-        client.publish(outTopic, "EmbedX Connected!"); // Lähetetään viesti MQTT-brokerille
+        client.publish(outTopic, IOTJS); // Lähetetään viesti MQTT-brokerille
         Serial.println("Message sent to MQTT server."); // Tulostetaan viesti onnistuneesta lähettämisestä
     } else {
         Serial.println("Failed to send message: not connected to MQTT server."); // Ei yhteyttä -> Yhteysvirheilmoitus
@@ -228,6 +243,7 @@ void pin_ISR_Down() {
 
 void printWindSpeed(long freq){
   long windSpeed = -0.24+freq*0.699;
+  windSpeedVal=windSpeed;
   lcd.setCursor(0, 0);
   lcd.print("Speed: ");
   lcd.print(windSpeed);
@@ -255,6 +271,7 @@ void printWindDirection(int ADvalue){
   } else {
     windDirection = "NW";
   }
+  windDirectionVal=windDirection;
   
   lcd.setCursor(0, 1);
   lcd.print("Direc: ");
