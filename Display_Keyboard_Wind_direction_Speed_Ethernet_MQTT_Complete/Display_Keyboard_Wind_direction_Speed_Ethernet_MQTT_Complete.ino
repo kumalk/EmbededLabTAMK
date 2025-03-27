@@ -9,33 +9,33 @@ volatile long timeStart = 0;
 volatile long time1 = 0;
 volatile long time2 = 0;
 volatile int count = 0;
-volatile long DD=0;
+volatile long DD = 0;
 IPAddress IP ;
 long frequency = 0;
 int ADval = 0;
 
 int counter = 0;
-int ADvalSum =0;
+int ADvalSum = 0;
 long freqSum = 0;
 
-int ADvalAvg =0;
-long freqAvg=0;
+int ADvalAvg = 0;
+long freqAvg = 0;
 
-long windSpeedVal = 0;
-String windDirectionVal = "Test";
+int windSpeedVal = 0;
+int windDirectionVal = 0;
 
-char IOTJS[100];
+char sendData[100];
 
 
 //------------------MQTT Prart : Star---------------------------------------
-byte server[] = { 10,6,1,14 }; // MQTT-palvelimen IP-osoite
+byte server[] = { 10, 6, 1, 14 }; // MQTT-palvelimen IP-osoite
 unsigned int Port = 1883;  // MQTT-palvelimen portti
 EthernetClient ethClient; // Ethernet-kirjaston client-olio
 PubSubClient client(server, Port, ethClient); // PubSubClient-olion luominen
 
 #define outTopic   "ICT4_out_2020" // Aihe, jolle viesti lähetetään
 
-static uint8_t mymac[6] = { 0x44,0x76,0x58,0x10,0x00,0x62 }; // MAC-osoite Ethernet-liitäntää varten
+static uint8_t mymac[6] = { 0x44, 0x76, 0x58, 0x10, 0x00, 0x62 }; // MAC-osoite Ethernet-liitäntää varten
 
 char* clientId = "a731fsd4"; // MQTT-clientin tunniste
 
@@ -65,23 +65,23 @@ const char keys[3][3] = {
 //==========================Setup================================================
 
 void setup() {
-    Serial.begin(9600); // Sarjaportin alustaminen
-    fetch_IP(); // Kutsutaan IP-osoitteen haku-funktiota
+  Serial.begin(9600); // Sarjaportin alustaminen
+  fetch_IP(); // Kutsutaan IP-osoitteen haku-funktiota
 
-    //={\"S_name1\":\"signal1\",\"S_value1\":%d,\"S_name2\":\"signal2\",\"S_value2\":%d}",signal1, signal2}
-    
-    sprintf(IOTJS, "IOTJS={\"S_name1\":\"Embedx_WindSpeed\",\"S_value1\":%d,\"S_name2\":\"Embedx_WindDirection\",\"S_value2\":\"%s\"}", 60, "NE");
 
-    Timer1.initialize(500000);
-    Timer1.attachInterrupt(takeMeasures);
-    
-    pinMode(buttonPin, INPUT);
-    
-    lcd.begin(16, 2);
-    lcd.setCursor(0, 0);
-    attachInterrupt(digitalPinToInterrupt(buttonPin), pin_ISR_Down, FALLING);
-    
-    // Initialize row pins as OUTPUT and set them HIGH
+
+  
+
+  Timer1.initialize(500000);
+  Timer1.attachInterrupt(takeMeasures);
+
+  pinMode(buttonPin, INPUT);
+
+  lcd.begin(16, 2);
+  lcd.setCursor(0, 0);
+  attachInterrupt(digitalPinToInterrupt(buttonPin), pin_ISR_Down, FALLING);
+
+  // Initialize row pins as OUTPUT and set them HIGH
   for (int i = 0; i < 3; i++) {
     pinMode(rows[i], OUTPUT);
     digitalWrite(rows[i], HIGH);
@@ -99,42 +99,50 @@ void setup() {
 
 //===========================Loop===============================================
 void loop() {
-    send_MQTT_message(); // Kutsutaan MQTT-viestin lähettämis-funktiota
-    //delay(5000); // 5 sekunnin viive
-    ADval = analogRead(A0);
+  send_MQTT_message(); // Kutsutaan MQTT-viestin lähettämis-funktiota
+  //delay(5000); // 5 sekunnin viive
+  ADval = analogRead(A0);
   Serial.print(ADval);
-  if (time1 != time2) { 
-    if (time1 - time2 > 0) { 
-      DD = time1-time2;
-      if(DD>10){
-      frequency = 1000 / (time1 - time2);
-      Serial.print("  |  ");
-      Serial.println(frequency);
+  if (time1 != time2) {
+    if (time1 - time2 > 0) {
+      DD = time1 - time2;
+      if (DD > 10) {
+        frequency = 1000 / (time1 - time2);
+        Serial.print("  |  ");
+        Serial.println(frequency);
       }
     } else {
-      frequency = 0; 
+      frequency = 0;
     }
 
-    if((time1 - timeStart)>=5000){
+    if ((time1 - timeStart) >= 5000) {
       lcd.clear();
-      ADvalAvg = ADvalSum/counter;
-      freqAvg = freqSum/counter;
-      ADvalSum =0;
-      freqSum=0;
-      counter=0;
+      ADvalAvg = ADvalSum / counter;
+      freqAvg = freqSum / counter;
+
+      printWindSpeed(freqAvg);
+      printWindDirection(ADvalAvg);
+
+      
+
+      sprintf(sendData, "IOTJS={\"S_name1\":\"Embedx_WindSpeed\",\"S_value1\":%d,\"S_name2\":\"Embedx_WindDirection\",\"S_value2\":\"%d\"}", windSpeedVal, windDirectionVal);
+
+      ADvalSum = 0;
+      freqSum = 0;
+      counter = 0;
       timeStart = time1;
     }
 
-    
-    
-    
+
+
+
     Serial.print("Frequency: ");
     Serial.print(frequency);
     Serial.print(" | AD val: ");
     Serial.println(ADval);
     delay(2000);
-    
-     
+
+
   }
 
   for (int row = 0; row < 3; row++) {
@@ -144,15 +152,15 @@ void loop() {
       if (digitalRead(cols[col]) == LOW) {
         Serial.println(keys[row][col]); // Print the pressed key
         displayHandler(keys[row][col]);
-        
+
         while (digitalRead(cols[col]) == LOW); // Wait for the key to be released
       }
     }
 
     digitalWrite(rows[row], HIGH); // Reset current row to HIGH
   }
-  
-    
+
+
 }
 
 
@@ -163,21 +171,21 @@ void loop() {
 
 //------------------------------MQTT functions : start-------------------------
 void fetch_IP() {
-    bool connectionSuccess = Ethernet.begin(mymac); // Yhdistäminen Ethernet-verkkoon ja tallennetaan yhteyden tila
-    if (!connectionSuccess) {
-        Serial.println("Failed to access Ethernet controller"); // Jos yhteys ei onnistunut -> yhteysvirheilmoitus
-    } else {
-        Serial.println("Connected with IP: " + Ethernet.localIP()); // Onnistuessa tulostetaan IP-osoite
-    }
+  bool connectionSuccess = Ethernet.begin(mymac); // Yhdistäminen Ethernet-verkkoon ja tallennetaan yhteyden tila
+  if (!connectionSuccess) {
+    Serial.println("Failed to access Ethernet controller"); // Jos yhteys ei onnistunut -> yhteysvirheilmoitus
+  } else {
+    Serial.println("Connected with IP: " + Ethernet.localIP()); // Onnistuessa tulostetaan IP-osoite
+  }
 
-//this is custom coded part
-lcd.clear();
+  //this is custom coded part
+  lcd.clear();
   lcd.print("IP:");
   lcd.print(Ethernet.localIP());
   IP = Ethernet.localIP();
-  
+
   delay(1500);
-    
+
 }
 
 
@@ -186,24 +194,24 @@ lcd.clear();
 
 
 void send_MQTT_message() {
-    if (!client.connected()) { // Tarkistetaan onko yhteys MQTT-brokeriin muodostettu
-        connect_MQTT_server(); // Jos yhteyttä ei ollut, kutsutaan yhdistä -funktiota
-    }
-    if (client.connected()) { // Jos yhteys on muodostettu
-        client.publish(outTopic, IOTJS); // Lähetetään viesti MQTT-brokerille
-        Serial.println("Message sent to MQTT server."); // Tulostetaan viesti onnistuneesta lähettämisestä
-    } else {
-        Serial.println("Failed to send message: not connected to MQTT server."); // Ei yhteyttä -> Yhteysvirheilmoitus
-    }
+  if (!client.connected()) { // Tarkistetaan onko yhteys MQTT-brokeriin muodostettu
+    connect_MQTT_server(); // Jos yhteyttä ei ollut, kutsutaan yhdistä -funktiota
+  }
+  if (client.connected()) { // Jos yhteys on muodostettu
+    client.publish(outTopic, sendData); // Lähetetään viesti MQTT-brokerille
+    Serial.println("Message sent to MQTT server."); // Tulostetaan viesti onnistuneesta lähettämisestä
+  } else {
+    Serial.println("Failed to send message: not connected to MQTT server."); // Ei yhteyttä -> Yhteysvirheilmoitus
+  }
 }
 
-void connect_MQTT_server() { 
-    Serial.println("Connecting to MQTT"); // Tulostetaan vähän info-viestiä
-    if (client.connect(clientId)) { // Tarkistetaan saadaanko yhteys MQTT-brokeriin
-        Serial.println("Connected OK"); // Yhdistetty onnistuneesti
-    } else {
-        Serial.println("Connection failed."); // Yhdistäminen epäonnistui
-    }    
+void connect_MQTT_server() {
+  Serial.println("Connecting to MQTT"); // Tulostetaan vähän info-viestiä
+  if (client.connect(clientId)) { // Tarkistetaan saadaanko yhteys MQTT-brokeriin
+    Serial.println("Connected OK"); // Yhdistetty onnistuneesti
+  } else {
+    Serial.println("Connection failed."); // Yhdistäminen epäonnistui
+  }
 }
 
 //-----------------------------MQTT functions : End --------------------------------------
@@ -211,20 +219,20 @@ void connect_MQTT_server() {
 
 // ---------------------------Other Functions : Start-------------------------------------
 
-void takeMeasures(){
+void takeMeasures() {
   counter++;
-  ADvalSum +=ADval;
+  ADvalSum += ADval;
   freqSum += frequency;
 }
 
-void displayHandler(char pressedKey){
-  if(pressedKey=='5'){
+void displayHandler(char pressedKey) {
+  if (pressedKey == '5') {
     lcd.clear();
     printWindSpeed(freqAvg);
-  }else if(pressedKey=='4'){
+  } else if (pressedKey == '4') {
     lcd.clear();
     printWindDirection(ADvalAvg);
-  }else if(pressedKey=='6'){
+  } else if (pressedKey == '6') {
     lcd.clear();
     lcd.print("IP : ");
     lcd.print(IP);
@@ -235,15 +243,15 @@ void displayHandler(char pressedKey){
 void pin_ISR_Down() {
   time2 = time1;
   time1 = millis();
-  DD = time1-time2;
-  if((DD)>10){
-  count++;
+  DD = time1 - time2;
+  if ((DD) > 10) {
+    count++;
   }
 }
 
-void printWindSpeed(long freq){
-  long windSpeed = -0.24+freq*0.699;
-  windSpeedVal=windSpeed;
+void printWindSpeed(long freq) {
+  long windSpeed = -0.24 + freq * 0.699;
+  windSpeedVal = windSpeed;
   lcd.setCursor(0, 0);
   lcd.print("Speed: ");
   lcd.print(windSpeed);
@@ -251,36 +259,40 @@ void printWindSpeed(long freq){
 }
 
 
-void printWindDirection(int ADvalue){
+void printWindDirection(int ADvalue) {
   float voltVal = (float)ADvalue * (5.00 / 1023.00);
   String windDirection = "";
-   if (voltVal <= 1.43){
+  windDirectionVal=voltVal*360/5;
+  if (voltVal <= 1.43) {
     windDirection = "N";
-  }else if (voltVal <= 1.91){
+  } else if (voltVal <= 1.91) {
     windDirection = "NE";
   } else if (voltVal <= 2.39) {
     windDirection = "E";
-  } else if (voltVal <= 2.87) { 
+  } else if (voltVal <= 2.87) {
     windDirection = "SE";
-  } else if (voltVal <= 3.34) { 
+  } else if (voltVal <= 3.34) {
     windDirection = "S";
-  } else if (voltVal <= 3.81) { 
+  } else if (voltVal <= 3.81) {
     windDirection = "EW";
-  } else if (voltVal <= 4.29) { 
+  } else if (voltVal <= 4.29) {
     windDirection = "W";
   } else {
-    windDirection = "NW";
+    
   }
-  windDirectionVal=windDirection;
   
+  
+
+
   lcd.setCursor(0, 1);
   lcd.print("Direc: ");
   //lcd.print(voltVal);
-  lcd.print(windDirection);
+  lcd.print(windDirectionVal);
+  lcd.print("°");
   Serial.print("voltVal:");
   Serial.print(voltVal);
   Serial.print("| Direction:");
   Serial.println(windDirection);
-  
- 
+
+
 }
