@@ -28,7 +28,7 @@ char sendData[100];
 
 
 //------------------MQTT Prart : Star---------------------------------------
-byte server[] = { 10, 6, 1, 14 }; // MQTT-palvelimen IP-osoite
+byte server[] = { 10, 6, 0, 23 }; // MQTT-palvelimen IP-osoite
 unsigned int Port = 1883;  // MQTT-palvelimen portti
 EthernetClient ethClient; // Ethernet-kirjaston client-olio
 PubSubClient client(server, Port, ethClient); // PubSubClient-olion luominen
@@ -125,7 +125,7 @@ void loop() {
 
       
 
-      sprintf(sendData, "IOTJS={\"S_name1\":\"Embedx_WindSpeed\",\"S_value1\":%d,\"S_name2\":\"Embedx_WindDirection\",\"S_value2\":\"%d\"}", windSpeedVal, windDirectionVal);
+      sprintf(sendData, "IOTJS={\"S_name1\":\"Embedx_WindSpeed\",\"S_value1\":%d,\"S_name2\":\"Embedx_WindDirection\",\"S_value2\":%d}", windSpeedVal, windDirectionVal);
 
       ADvalSum = 0;
       freqSum = 0;
@@ -140,7 +140,7 @@ void loop() {
     Serial.print(frequency);
     Serial.print(" | AD val: ");
     Serial.println(ADval);
-    delay(2000);
+    delay(500);
 
 
   }
@@ -288,7 +288,7 @@ void printWindDirection(int ADvalue) {
   lcd.print("Direc: ");
   //lcd.print(voltVal);
   lcd.print(windDirectionVal);
-  lcd.print("°");
+  lcd.print((char)223);
   Serial.print("voltVal:");
   Serial.print(voltVal);
   Serial.print("| Direction:");
