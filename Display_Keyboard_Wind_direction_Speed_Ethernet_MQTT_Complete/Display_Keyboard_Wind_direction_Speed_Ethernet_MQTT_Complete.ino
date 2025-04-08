@@ -22,7 +22,7 @@ volatile long DD = 0;
 long frequency = 0;
 
 //To store the wind direction voltage value
-int ADval = 0;
+volatile int ADval = 0;
 
 //To store local IP address
 
@@ -111,7 +111,7 @@ void setup()
 //===========================Loop===============================================
 void loop()
 {
-  send_MQTT_message();                    //Call the send MQTT message function
+  
   ADval = analogRead(windDirectionPin);   //Reading voltage value for caluclating wind direction 
 
  //This part is for calculating frequency by removing noise effect (maybe debounce)
@@ -145,6 +145,8 @@ void loop()
 
       //Preparing JSON string with calculated values to send to MQTT server
       sprintf(sendData, "IOTJS={\"S_name1\":\"Embedx_WindSpeed\",\"S_value1\":%d,\"S_name2\":\"Embedx_WindDirection\",\"S_value2\":%d}", windSpeedVal, windDirectionVal);
+
+      send_MQTT_message();                    //Call the send MQTT message function
 
       //Reseting values of veriables after updating display
       ADvalSum = 0;
@@ -247,7 +249,7 @@ void connect_MQTT_server()
 void takeMeasures()
 {
   counter++;
-  ADvalSum += ADval;
+  ADvalSum += analogRead(windDirectionPin);
   freqSum += frequency;
 }
 
@@ -269,8 +271,7 @@ void displayHandler(char pressedKey)
   else if (pressedKey == '6')
   {
     lcd.clear();
-    lcd.print("IP : ");
-    lcd.print(IP);
+    printWindDirectionName(ADvalAvg);
   }
 }
 
@@ -303,8 +304,22 @@ void printWindSpeed(long freq)
 void printWindDirection(int ADvalue)
 {
   float voltVal = (float)ADvalue * (5.00 / 1023.00);
-  String windDirection = "";
+  
   windDirectionVal = voltVal * 360 / 5; //calcualting degree value from volatage value
+
+  lcd.setCursor(0, 1);
+  lcd.print("Direc: ");
+  lcd.print(windDirectionVal);
+  lcd.print((char)223);//for printing degree character 
+ 
+}
+
+//Function for printing wind direction values 
+void printWindDirectionName(int ADvalue)
+{
+  float voltVal = (float)ADvalue * (5.00 / 1023.00);
+  String windDirection = "";
+  
 
   //determining direction from volt value 
   if (voltVal <= 1.43)
@@ -341,7 +356,7 @@ void printWindDirection(int ADvalue)
 
   lcd.setCursor(0, 1);
   lcd.print("Direc: ");
-  lcd.print(windDirectionVal);
-  lcd.print((char)223);//for printing degree character 
+  lcd.print(windDirection);
+  
  
 }
