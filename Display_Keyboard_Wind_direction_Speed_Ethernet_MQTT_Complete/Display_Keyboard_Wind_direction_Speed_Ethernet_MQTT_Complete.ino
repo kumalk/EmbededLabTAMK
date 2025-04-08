@@ -13,7 +13,7 @@
 int windSpeedPin = 3;
 int windDirectionPin = A0;
 
-// veriable to store time values to calculate frequency
+//  veriable to store time values to calculate frequency
 volatile long timeStart = 0;
 volatile long time1 = 0;
 volatile long time2 = 0;
